@@ -1,0 +1,72 @@
+name: "Continuous Delivery and Continuous Deployment Server Convention"
+description: "Trip Teknologi's Continuous Delivery and Continuous Deployment Server Convention"
+author: "Trip Teknologi"
+inputs:
+  token:
+    required: true
+    description: "Token"
+  host:
+    required: true
+    description: "Credential Host"
+  port:
+    required: true
+    description: "Credential Port"
+  user:
+    required: true
+    description: "Credential User"
+  privatekey:
+    required: true
+    description: "Credential Private Key"
+  privatekey_passphrase:
+    required: true
+    description: "Credential Private Key Passphrase"
+  path:
+    required: false
+    description: "Server Path"
+  script:
+    required: false
+    description: "Server Script"
+  type:
+    required: true
+    description: "Type of Deliver/Deploy"
+  artifact:
+    required: true
+    description: "Target of Version Artifact"
+outputs:
+  version:
+    value: ${{ steps.version.outputs.version }}
+    description: "Version of Artifact"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - id: version
+      uses: tripteki/version@1.0.0
+      with:
+        token: ${{ inputs.token }}
+        artifact: ${{ inputs.artifact }}
+    - id: ssh
+      if: ${{ steps.version.outputs.passes == 'true' && inputs.type == 'ssh' }}
+      uses: burnett01/rsync-deployments@7.0.0
+      with:
+        switches: -r --delete -a -z -Pv
+        remote_host: ${{ inputs.host }}
+        remote_port: ${{ inputs.port }}
+        remote_user: ${{ inputs.user }}
+        remote_key: ${{ inputs.privatekey }}
+        remote_key_pass: ${{ inputs.privatekey_passphrase }}
+        remote_path: ${{ inputs.path }}
+    - id: command
+      if: ${{ steps.version.outputs.passes == 'true' && inputs.type == 'command' }}
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        allenvs: true
+        command_timeout: 960m
+        host: ${{ inputs.host }}
+        port: ${{ inputs.port }}
+        username: ${{ inputs.user }}
+        key: ${{ inputs.privatekey }}
+        passphrase: ${{ inputs.privatekey_passphrase }}
+        script: ${{ inputs.script }}
